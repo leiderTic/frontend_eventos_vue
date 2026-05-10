@@ -80,7 +80,7 @@
                             <div v-for="(tarifa, index) in cotizacion.tarifas" :key="'t-'+index" class="flex justify-between py-2 border-b border-surface-100 items-center">
                                 <div>
                                     <p class="font-bold text-surface-900 text-sm !m-0 !p-0 leading-tight">{{ tarifa.espacio?.nombre || 'Espacio' }}</p>
-                                    <p class="text-xs text-surface-500 !m-0 !p-0 leading-tight mt-0.5">{{ tarifa.pivot?.dias || 0 }}d × Bs {{ formatCurrency(tarifa.pivot?.precio_aplicado || 0) }} ({{ tarifa.tipo_tarifa?.nombre || 'Tarifa' }})</p>
+                                    <p class="text-xs text-surface-500 !m-0 !p-0 leading-tight mt-0.5">{{ tarifa.pivot?.dias || 0 }}d × Bs {{ formatCurrency(tarifa.pivot?.precio_aplicado || 0) }} ({{ tarifa.evento?.descripcion || tarifa.tipo_tarifa?.nombre || 'Tarifa' }})</p>
                                 </div>
                                 <div class="font-black text-surface-900 text-base">
                                     Bs {{ formatCurrency(Number(tarifa.pivot?.dias || 0) * Number(tarifa.pivot?.precio_aplicado || 0)) }}
@@ -93,11 +93,11 @@
                                 <div>
                                     <p class="font-bold text-surface-900 text-sm !m-0 !p-0 leading-tight">{{ servicio.nombre }}</p>
                                     <p class="text-xs text-surface-500 !m-0 !p-0 leading-tight mt-0.5">
-                                        {{ servicio.pivot?.cantidad || 1 }}u × Bs {{ formatCurrency(servicio.pivot?.precio_aplicado || 0) }}
+                                        {{ servicio.pivot?.cantidad || 1 }}u × Bs {{ formatCurrency(servicio.pivot?.precio_aplicado || 0) }} <span v-if="servicio.pivot?.dias">× {{ servicio.pivot.dias }} día(s)</span>
                                     </p>
                                 </div>
                                 <div class="font-black text-surface-900 text-base">
-                                    Bs {{ formatCurrency(Number(servicio.pivot?.cantidad || 1) * Number(servicio.pivot?.dias || 1) * Number(servicio.pivot?.precio_aplicado || 0)) }}
+                                    Bs {{ formatCurrency(Number(servicio.pivot?.cantidad || 1) * Number(servicio.pivot?.precio_aplicado || 0) * Number(servicio.pivot?.dias || 1)) }}
                                 </div>
                             </div>
                         </template>
@@ -265,7 +265,7 @@
                 <h4 class="font-bold text-surface-500 text-xs mt-8 mb-4 uppercase tracking-wider">ESPACIOS COTIZADOS</h4>
                 <div v-for="t in cotizacion.tarifas" :key="t.id" class="grid grid-cols-12 border-b border-surface-200 py-3 items-center">
                     <span class="col-span-8 font-bold text-surface-900 truncate">{{ t.espacio?.nombre }}</span>
-                    <span class="col-span-4 text-surface-400 text-right uppercase text-[10px] truncate">{{ t.tipo_tarifa?.nombre }}</span>
+                    <span class="col-span-4 text-surface-400 text-right uppercase text-[10px] truncate">{{ t.evento?.descripcion || t.tipo_tarifa?.nombre || 'Tarifa' }}</span>
                 </div>
 
                 <h4 class="font-bold text-surface-500 text-xs mt-8 mb-4 uppercase tracking-wider">EJECUTIVO ASIGNADO</h4>
@@ -396,7 +396,7 @@ const getContactoEmail = () => {
 
 const getEspaciosList = () => {
     if (!cotizacion.value || !cotizacion.value.tarifas) return '';
-    const spaces = [...new Set(cotizacion.value.tarifas.map(t => `${t.espacio?.nombre} (${t.tipo_tarifa?.nombre})`))];
+    const spaces = [...new Set(cotizacion.value.tarifas.map(t => `${t.espacio?.nombre} (${t.evento?.descripcion || t.tipo_tarifa?.nombre || 'Tarifa'})`))];
     return spaces.join(', ');
 };
 

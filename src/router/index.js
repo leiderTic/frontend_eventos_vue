@@ -67,22 +67,22 @@ const router = createRouter({
 })
 
 // guardia de rutas
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, from) => {
     let token = localStorage.getItem('access_token')
 
     if (to.meta.requiresAuth) {
         if (token) {
-            return next()
+            return true
         } else {
-            return next({ name: 'login' })
+            return { name: 'login' }
         }
     }
 
     if (to.meta.requiresIfAuth && token) {
-        return next({ name: 'usuario' })
+        return { name: 'usuario' }
     }
 
-    next()
+    return true
 })
 
 export default router

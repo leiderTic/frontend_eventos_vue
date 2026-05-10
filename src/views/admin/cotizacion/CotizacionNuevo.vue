@@ -237,7 +237,7 @@
                                             class="text-red-500">*</span></label>
                                     <Select id="tipo_evento" v-model="cotizacion.tipo_evento" :options="tiposEvento"
                                         optionLabel="descripcion" optionValue="id" placeholder="Selecciona el tipo"
-                                        class="w-full" />
+                                        class="w-full" @change="onTipoEventoChange" />
                                 </div>
 
                                 <div class="flex flex-col gap-2">
@@ -333,7 +333,7 @@
                             <div class="w-px h-8 bg-surface-200 dark:bg-surface-700 hidden sm:block"></div>
 
                             <div class="flex flex-wrap gap-2">
-                                <Button v-for="bloque in bloques" :key="'bq_' + bloque.id"
+                                <Button v-for="bloque in bloquesConEspacios" :key="'bq_' + bloque.id"
                                     :outlined="activeBloque !== bloque.id"
                                     @click="activeBloque = activeBloque === bloque.id ? 'todos' : bloque.id"
                                     class="rounded-full !px-4 hover:shadow-md transition-all font-bold"
@@ -406,27 +406,27 @@
                                                     :max="conteoTemporadas.total > 0 ? conteoTemporadas.total : 1"
                                                     inputClass="w-full p-2 text-center font-bold text-sm"
                                                     class="w-full !border-surface-200" decrementButtonIcon="pi pi-minus"
-                                                    incrementButtonIcon="pi pi-plus" />
+                                                    incrementButtonIcon="pi pi-plus"
+                                                    @update:modelValue="recalcularDiasEspacio(espacio.id)" />
                                             </div>
                                             <div class="flex-1 overflow-hidden">
-                                                <label
-                                                    class="text-[0.6rem] font-bold text-muted-color uppercase mb-1 block">Tipo
-                                                    Tarifa</label>
-                                                <Select v-model="getEspacioData(espacio.id).tipo_tarifa_id"
-                                                    :options="tipoTarifas" optionLabel="nombre" optionValue="id"
-                                                    placeholder="Tipo" class="w-full text-sm"
-                                                    @change="onTipoTarifaChange(espacio.id, $event.value)">
-                                                    <template #value="slotProps">
-                                                        <div v-if="slotProps.value" class="truncate text-xs">
-                                                            {{ getTipoTarifaName(slotProps.value) }}
-                                                        </div>
-                                                        <span v-else class="text-xs text-surface-400">Tipo</span>
-                                                    </template>
-                                                    <template #option="slotProps">
-                                                        <div class="truncate text-xs">{{ slotProps.option.nombre }}
-                                                        </div>
-                                                    </template>
-                                                </Select>
+                                                <div class="flex items-center gap-1 mb-1">
+                                                    <label
+                                                        class="text-[0.6rem] font-bold text-muted-color uppercase block">Tarifa
+                                                        Aplicada</label>
+                                                    <!-- Botón toggle alta/baja (solo visible cuando hay ambas temporadas) -->
+                                                    <Button v-if="conteoTemporadas.alta.count > 0 && conteoTemporadas.baja.count > 0"
+                                                        v-tooltip.top="preferirBajaMap[espacio.id] ? 'Priorizando descuento de Baja. Click para Alta primero' : 'Priorizando descuento de Alta. Click para Baja primero'"
+                                                        :icon="preferirBajaMap[espacio.id] ? 'pi pi-arrow-down' : 'pi pi-arrow-up'"
+                                                        text rounded size="small"
+                                                        :class="preferirBajaMap[espacio.id] ? '!text-blue-500 hover:bg-blue-50' : '!text-orange-500 hover:bg-orange-50'"
+                                                        class="w-5 h-5 !p-0"
+                                                        @click="togglePreferirBaja(espacio.id)" />
+                                                </div>
+                                                <div class="text-xs font-bold text-primary bg-primary-50 dark:bg-primary-900/20 px-2 py-2 rounded border border-primary-200 dark:border-primary-800 truncate">
+                                                    <i class="pi pi-tag mr-1"></i>
+                                                    {{ getTipoTarifaName() || 'Selecciona tipo de evento primero' }}
+                                                </div>
                                             </div>
                                         </div>
 
@@ -436,19 +436,19 @@
                                                 class="flex justify-between items-center text-[0.65rem] text-muted-color">
                                                 <span>Temp. Baja: {{ (getEspacioData(espacio.id).precio_baja ||
                                                     0).toLocaleString() }}/d
-                                                    &times; {{ conteoTemporadas.baja.count }}d</span>
+                                                    &times; {{ getEspacioData(espacio.id)._dias_baja ?? conteoTemporadas.baja.count }}d</span>
                                                 <span class="font-bold">Bs {{ ((getEspacioData(espacio.id).precio_baja
                                                     || 0) *
-                                                    conteoTemporadas.baja.count).toLocaleString() }}</span>
+                                                    (getEspacioData(espacio.id)._dias_baja ?? conteoTemporadas.baja.count)).toLocaleString() }}</span>
                                             </div>
                                             <div v-if="conteoTemporadas.alta.count > 0"
                                                 class="flex justify-between items-center text-[0.65rem] text-muted-color">
                                                 <span>Temp. Alta: {{ (getEspacioData(espacio.id).precio_alta ||
                                                     0).toLocaleString() }}/d
-                                                    &times; {{ conteoTemporadas.alta.count }}d</span>
+                                                    &times; {{ getEspacioData(espacio.id)._dias_alta ?? conteoTemporadas.alta.count }}d</span>
                                                 <span class="font-bold">Bs {{ ((getEspacioData(espacio.id).precio_alta
                                                     || 0) *
-                                                    conteoTemporadas.alta.count).toLocaleString() }}</span>
+                                                    (getEspacioData(espacio.id)._dias_alta ?? conteoTemporadas.alta.count)).toLocaleString() }}</span>
                                             </div>
 
                                             <div
@@ -657,21 +657,18 @@
                                         class="flex items-center gap-3 !text-white/70 text-sm font-medium leading-none !m-0 !p-0 mt-0.5">
                                         <div class="flex items-center gap-1">
                                             <i class="pi pi-user text-[0.8rem] opacity-50"></i>
-                                            <span>{{entidades.find(e => e.id === cotizacion.contacto_id)?.nombre ||
-                                                'Titular' }}</span>
+                                            <span>{{ entidades.find(e => e.id === (cotizacion.contacto_id || cotizacion.entidad_id))?.nombre || 'Titular' }}</span>
                                         </div>
-                                        <template v-if="entidades.find(e => e.id === cotizacion.contacto_id)?.telefono">
+                                        <template v-if="entidades.find(e => e.id === (cotizacion.contacto_id || cotizacion.entidad_id))?.telefono">
                                             <div class="flex items-center gap-1">
-                                                <i class="pi pi-phone text-[0.8rem] opacity-50"></i>
-                                                <span>{{entidades.find(e => e.id === cotizacion.contacto_id)?.telefono
-                                                    }}</span>
+                                                <i class="pi pi-whatsapp text-[0.8rem] opacity-50"></i>
+                                                <span>+{{ entidades.find(e => e.id === (cotizacion.contacto_id || cotizacion.entidad_id))?.telefono_codigo || '591' }} {{ entidades.find(e => e.id === (cotizacion.contacto_id || cotizacion.entidad_id))?.telefono }}</span>
                                             </div>
                                         </template>
-                                        <template v-if="entidades.find(e => e.id === cotizacion.contacto_id)?.email">
+                                        <template v-if="entidades.find(e => e.id === (cotizacion.contacto_id || cotizacion.entidad_id))?.email">
                                             <div class="flex items-center gap-1">
                                                 <i class="pi pi-envelope text-[0.8rem] opacity-50"></i>
-                                                <span>{{entidades.find(e => e.id === cotizacion.contacto_id)?.email
-                                                    }}</span>
+                                                <span>{{ entidades.find(e => e.id === (cotizacion.contacto_id || cotizacion.entidad_id))?.email }}</span>
                                             </div>
                                         </template>
                                     </div>
@@ -713,26 +710,20 @@
                                             <h4 class="font-bold text-base leading-none m-0 p-0">
                                                 {{ espacios.find(e => e.id === espacio.espacio_id)?.nombre || 'Espacio Seleccionado' }}
                                             </h4>
-                                            <div
-                                                class="text-xs font-medium text-surface-500 dark:text-surface-400 mt-0.5 flex items-center gap-1.5 leading-none">
-                                                <span>{{ getTarifaDisplayName(espacio.espacio_id,
-                                                    espacio.tipo_tarifa_id) }}</span>
+                                            <div class="text-xs font-medium text-surface-500 dark:text-surface-400 mt-0.5 flex items-center gap-1.5 leading-none">
+                                                <span>{{ getTipoTarifaName() }}</span>
                                                 <span class="text-surface-300">·</span>
-                                                <span>{{ conteoTemporadas.total }} día{{ conteoTemporadas.total !== 1 ?
-                                                    's' : ''
-                                                    }}</span>
+                                                <span>{{ espacio.dias }} día{{ espacio.dias !== 1 ? 's' : '' }}</span>
                                                 <span class="text-surface-300">·</span>
-                                                <span class="uppercase">{{ getFullBloqueLabel(espacio.espacio_id)
-                                                    }}</span>
+                                                <span class="uppercase">{{ getFullBloqueLabel(espacio.espacio_id) }}</span>
                                             </div>
                                         </div>
                                         <div class="text-right">
-                                            <div
-                                                class="text-[0.65rem] text-primary-500 font-bold uppercase tracking-tight">
-                                                Bs {{
-                                                espacio.precio_aplicado.toLocaleString() }}/día</div>
-                                            <div class="text-xl font-black">Bs {{
-                                                espacio.precio_aplicado.toLocaleString() }}</div>
+                                            <div class="text-[0.65rem] text-surface-400 font-medium uppercase tracking-tight">
+                                                Bs {{ espacio.precio_baja ? espacio.precio_baja.toLocaleString() : '0' }}/d baja
+                                                <span v-if="espacio.precio_alta"> &middot; Bs {{ espacio.precio_alta.toLocaleString() }}/d alta</span>
+                                            </div>
+                                            <div class="text-xl font-black">Bs {{ calculateSubtotal(espacio.espacio_id).toLocaleString() }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -764,7 +755,8 @@
                                                 class="text-[0.7rem] font-medium text-surface-500 dark:text-surface-400 mt-0.5 leading-none">
                                                 {{ servicio.cantidad }} {{ servicio.unidad }} <span
                                                     v-if="!servicio.porEv">&times; {{
-                                                    servicio.dias }} días</span>
+                                                    servicio.dias || conteoTemporadas.total }} días</span>
+                                                <span v-else>(por evento)</span>
                                             </div>
                                         </div>
                                         <div class="text-xl font-black text-surface-900 dark:text-surface-0">
@@ -903,19 +895,70 @@
                     <InputText id="new_nombre" v-model="nuevoRegistro.nombre" placeholder="Nombre completo o Empresa"
                         class="p-inputtext-sm" />
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="flex flex-col gap-2">
-                        <label for="new_telefono"
-                            class="font-bold text-sm text-surface-900 dark:text-surface-0">Teléfono</label>
-                        <InputText id="new_telefono" v-model="nuevoRegistro.telefono" placeholder="+591 ..."
-                            class="p-inputtext-sm" />
+                
+                <!-- Grid de contacto: Celular + Email (fila 1), Teléfono fijo (fila 2, solo institución) -->
+                <div class="grid grid-cols-2 gap-x-4 gap-y-4 mt-2">
+
+                    <!-- CELULAR con selector de país -->
+                    <div class="flex flex-col gap-1 col-span-2 sm:col-span-1">
+                        <label class="font-bold text-xs text-surface-500 uppercase tracking-wider">
+                            Celular <span class="text-surface-400 font-normal normal-case tracking-normal text-[0.7rem]">(WhatsApp)</span>
+                        </label>
+                        <div class="flex items-stretch w-full">
+                            <!-- Bandera + código — ancho justo para mostrar solo la bandera y +XXX -->
+                            <Select
+                                v-model="nuevoRegistro.telefono_codigo"
+                                :options="countryCodes"
+                                optionValue="code"
+                                optionLabel="label"
+                                filter
+                                filterPlaceholder="Buscar país..."
+                                class="w-[6.5rem] shrink-0"
+                                :pt="{ root: { class: 'rounded-r-none border-r-0 hover:z-10 focus:z-10' } }">
+                                <template #value="{ value }">
+                                    <span v-if="value" class="font-semibold text-sm tracking-tight flex items-center h-full">
+                                        {{ countryCodes.find(c => c.code === value)?.flag }}&thinsp;+{{ value }}
+                                    </span>
+                                </template>
+                                <template #option="{ option }">
+                                    <span class="text-sm">{{ option.label }}</span>
+                                </template>
+                            </Select>
+                            <InputText
+                                v-model="nuevoRegistro.telefono"
+                                placeholder="70000000"
+                                class="flex-1 min-w-0 w-full p-inputtext-sm !rounded-l-none focus:z-10 relative"
+                                type="tel" inputmode="numeric" />
+                        </div>
+                        <div v-if="nuevoRegistro.telefono" class="flex items-center gap-1 text-[0.68rem] text-green-600 font-medium leading-none mt-0.5">
+                            <i class="pi pi-whatsapp text-[10px]"></i>
+                            wa.me/{{ nuevoRegistro.telefono_codigo }}{{ nuevoRegistro.telefono }}
+                        </div>
                     </div>
-                    <div class="flex flex-col gap-2">
-                        <label for="new_email"
-                            class="font-bold text-sm text-surface-900 dark:text-surface-0">Email</label>
+
+                    <!-- EMAIL -->
+                    <div class="flex flex-col gap-1 col-span-2 sm:col-span-1">
+                        <label for="new_email" class="font-bold text-xs text-surface-500 uppercase tracking-wider">Email</label>
                         <InputText id="new_email" v-model="nuevoRegistro.email" placeholder="correo@ejemplo.com"
-                            class="p-inputtext-sm" />
+                            class="p-inputtext-sm w-full" />
                     </div>
+
+                    <!-- TELÉFONO FIJO — solo visible para instituciones -->
+                    <div v-if="nuevoRegistro.tipo === 'institucion' || isCreatingContacto === false && nuevoRegistro.tipo === 'institucion'"
+                         class="flex flex-col gap-1 col-span-2">
+                        <label for="new_telefono_fijo" class="font-bold text-xs text-surface-500 uppercase tracking-wider">
+                            Teléfono de Oficina
+                            <span class="text-surface-400 font-normal normal-case tracking-normal text-[0.7rem]">(fijo / central)</span>
+                        </label>
+                        <div class="flex items-stretch w-full">
+                            <span class="text-surface-500 text-sm font-medium px-3 flex items-center border border-r-0 border-surface-300 dark:border-surface-700 rounded-l-md bg-surface-50 dark:bg-surface-800 whitespace-nowrap shrink-0">
+                                <i class="pi pi-phone text-xs mr-1"></i>Fijo
+                            </span>
+                            <InputText id="new_telefono_fijo" v-model="nuevoRegistro.telefono_fijo"
+                                placeholder="2-XXXXXXX" class="flex-1 min-w-0 w-full p-inputtext-sm !rounded-l-none focus:z-10 relative" type="tel" inputmode="numeric" />
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -1000,13 +1043,15 @@ import clienteServices from '@/services/cliente.services';
 import eventoServices from '@/services/evento.services';
 import cotizacionServices from '@/services/cotizacion.services';
 import temporadaServices from '@/services/temporada.services';
+import { useCountryCodes } from '@/composables/useCountryCodes';
 
 import tarifaServices from '@/services/tarifa.services';
 import espacioServices from '@/services/espacio.services';
 import bloqueServices from '@/services/bloque.services';
 import tipoEspacioServices from '@/services/tipoespacio.services';
-import tipoTarifaServices from '@/services/tipotarifa.services';
 import servicioServices from '@/services/servicio.services';
+
+const { countryCodes, defaultCode, buildWhatsAppUrl } = useCountryCodes();
 
 // ============================================================================
 // ESTADO GENERAL DEL WIZARD
@@ -1044,7 +1089,7 @@ const bloques = ref([]);
 const tipoEspacios = ref([]);
 const espacios = ref([]);
 const tarifas = ref([]);
-const tipoTarifas = ref([]);
+
 const servicios = ref([]);
 
 onMounted(async () => {
@@ -1056,7 +1101,6 @@ onMounted(async () => {
     listarBloques()
     listarEspacios()
     listarTarifas()
-    listarTipoTarifas()
     listarServicios()
 });
 
@@ -1124,13 +1168,6 @@ async function listarTarifas() {
         // Soporte para respuestas directas o envueltas en .data (Laravel Resources/Pagination)
         tarifas.value = data?.data ? data.data : data;
     } catch (e) { console.error("Error al cargar tarifas globales", e); }
-}
-
-async function listarTipoTarifas() {
-    try {
-        const { data } = await tipoTarifaServices.listar();
-        tipoTarifas.value = data?.data ? data.data : data;
-    } catch (e) { console.error("Error al cargar tipos de tarifa", e); }
 }
 
 async function listarServicios() {
@@ -1249,22 +1286,36 @@ const filteredEspacios = computed(() => {
     return result;
 });
 
+// Solo muestra bloques que tienen al menos un espacio asignado
+const bloquesConEspacios = computed(() => {
+    const bloqueIdsUsados = new Set(espacios.value.map(e => e.bloque_id).filter(Boolean));
+    return bloques.value.filter(b => bloqueIdsUsados.has(b.id));
+});
+
 // Helper para UI
-const getTipoTarifaName = (tipoId) => {
-    const tt = tipoTarifas.value.find(t => t.id === tipoId);
-    return tt ? tt.nombre : 'Tarifa';
+const getTipoTarifaName = () => {
+    // Retorna el nombre del tipo de evento seleccionado en lugar del hardcoded 'Tarifa del Evento'
+    const eventoId = cotizacion.value.tipo_evento;
+    if (!eventoId) return 'Tarifa del Evento';
+    const ev = tiposEvento.value.find(e => e.id === eventoId);
+    return ev ? ev.descripcion : 'Tarifa del Evento';
 };
 
 const getTarifaDisplayName = (espacioId, valueId) => {
     if (!valueId) return 'Seleccione';
     const t = getTarifasOptions(espacioId).find(tr => tr.id === valueId);
     if (!t) return 'Tarifa Seleccionada';
-    return t.descripcion || getTipoTarifaName(t.tipo_tarifa_id) || ('T ' + t.id);
+    // Mostramos el nombre del evento + temporada para identificar la tarifa
+    const eventoNombre = t.evento?.descripcion || t.evento_nombre || '';
+    const tempNombre = t.temporada?.descripcion || t.temporada_nombre || '';
+    return [eventoNombre, tempNombre].filter(Boolean).join(' • ') || ('T ' + t.id);
 };
 
 const getOptionTarifaDisplayName = (option) => {
     if (!option) return '';
-    return option.descripcion || getTipoTarifaName(option.tipo_tarifa_id) || ('T ' + option.id);
+    const eventoNombre = option.evento?.descripcion || option.evento_nombre || '';
+    const tempNombre = option.temporada?.descripcion || option.temporada_nombre || '';
+    return [eventoNombre, tempNombre].filter(Boolean).join(' • ') || ('T ' + option.id);
 };
 
 const isEspacioSelected = (espacioId) => {
@@ -1276,26 +1327,85 @@ const getEspacioData = (espacioId) => {
 };
 
 const getTarifasOptions = (espacioId) => {
-    // Usar caché validada de tarifas individuales
-    return tarifasPorEspacio.value[espacioId] || [];
+    // Filtrar solo las tarifas que corresponden al evento seleccionado
+    const eventoId = cotizacion.value.tipo_evento;
+    const tarifasDelEspacio = tarifasPorEspacio.value[espacioId] || [];
+    if (eventoId) {
+        return tarifasDelEspacio.filter(t => Number(t.evento_id) === Number(eventoId));
+    }
+    return tarifasDelEspacio;
 };
 
-// Vigilamos cambios en las temporadas para refrescar precios si ya hay tarifa seleccionada
-watch(() => conteoTemporadas.value, (newVal, oldVal) => {
-    // Si cambiaron los IDs de temporada o los conteos, refrescamos todos los seleccionados
+// Vigilamos cambios en las temporadas para refrescar precios Y sincronizar días
+watch(() => conteoTemporadas.value, (newVal) => {
+    const eventoId = cotizacion.value.tipo_evento;
+    if (!eventoId) return;
     cotizacion.value.espacios.forEach(sp => {
-        if (sp.tipo_tarifa_id) {
-            onTipoTarifaChange(sp.espacio_id, sp.tipo_tarifa_id);
-        }
+        // Sincronizar días al total de días recalculado
+        sp.dias = newVal.total > 0 ? newVal.total : 1;
+        autoSeleccionarTarifa(sp.espacio_id, eventoId);
     });
 }, { deep: true });
+
+// Vigilamos cambios en el tipo de evento para refrescar tarifas de todos los espacios seleccionados
+watch(() => cotizacion.value.tipo_evento, (nuevoEventoId) => {
+    if (!nuevoEventoId) return;
+    cotizacion.value.espacios.forEach(sp => {
+        sp.evento_id = nuevoEventoId;
+        autoSeleccionarTarifa(sp.espacio_id, nuevoEventoId);
+    });
+});
+
+// Estado por espacio: si el toggle está en 'preferirBaja', los días extra se descuentan de baja primero
+const preferirBajaMap = ref({});
+
+const togglePreferirBaja = (espacioId) => {
+    preferirBajaMap.value[espacioId] = !preferirBajaMap.value[espacioId];
+    recalcularDiasEspacio(espacioId);
+};
+
+/**
+ * Recalcula la distribución de días entre alta y baja al cambiar manualmente el campo días.
+ * Si preferirBaja=true: reduce primero de los días bajos, si no alcanza, reduce de los altos.
+ * Si preferirBaja=false: reduce primero de los días altos, luego de los bajos.
+ */
+const recalcularDiasEspacio = (espacioId) => {
+    const sp = cotizacion.value.espacios.find(e => Number(e.espacio_id) === Number(espacioId));
+    if (!sp) return;
+
+    const totalMaximo = conteoTemporadas.value.total;
+    const diasUsados = Math.min(sp.dias || 1, totalMaximo);
+
+    const maxBaja = conteoTemporadas.value.baja.count;
+    const maxAlta = conteoTemporadas.value.alta.count;
+    const preferBaja = !!preferirBajaMap.value[espacioId];
+
+    let asignadoBaja, asignadoAlta;
+
+    if (preferBaja) {
+        // Descuenta días primero de los días bajos
+        asignadoBaja = Math.min(diasUsados, maxBaja);
+        asignadoAlta = Math.min(diasUsados - asignadoBaja, maxAlta);
+    } else {
+        // Descuenta días primero de los días altos (default original)
+        asignadoAlta = Math.min(diasUsados, maxAlta);
+        asignadoBaja = Math.min(diasUsados - asignadoAlta, maxBaja);
+    }
+
+    sp._dias_baja = asignadoBaja;
+    sp._dias_alta = asignadoAlta;
+};
 
 const calculateSubtotal = (espacioId) => {
     const sp = getEspacioData(espacioId);
     if (!sp || !sp.tipo_tarifa_id) return 0;
 
-    const subBaja = (conteoTemporadas.value.baja.count || 0) * (sp.precio_baja || 0);
-    const subAlta = (conteoTemporadas.value.alta.count || 0) * (sp.precio_alta || 0);
+    // Usar los días distribuidos si fueron calculados, de lo contrario usar los de temporada
+    const diasBaja = sp._dias_baja !== undefined ? sp._dias_baja : (conteoTemporadas.value.baja.count || 0);
+    const diasAlta = sp._dias_alta !== undefined ? sp._dias_alta : (conteoTemporadas.value.alta.count || 0);
+
+    const subBaja = diasBaja * (sp.precio_baja || 0);
+    const subAlta = diasAlta * (sp.precio_alta || 0);
 
     return subBaja + subAlta;
 };
@@ -1338,10 +1448,17 @@ const selectEspacio = async (espacio) => {
     // Evitar dobles
     if (cotizacion.value.espacios.find(e => e.espacio_id === espacio.id)) return;
 
+    const eventoId = cotizacion.value.tipo_evento;
+    if (!eventoId) {
+        toast.add({ severity: 'warn', summary: 'Selecciona un Evento', detail: 'Debes seleccionar el tipo de evento en el Paso 1 antes de elegir espacios.', life: 4000 });
+        return;
+    }
+
     cotizacion.value.espacios.push({
         espacio_id: espacio.id,
         dias: conteoTemporadas.value.total > 0 ? conteoTemporadas.value.total : 1,
         tipo_tarifa_id: null,
+        evento_id: eventoId, // Guardamos el evento_id para filtrar tarifas
         precio_baja: 0,
         precio_alta: 0,
         precio_aplicado: 0
@@ -1350,53 +1467,45 @@ const selectEspacio = async (espacio) => {
     // Cargar tarifas básicas del espacio para visualización
     if (!tarifasPorEspacio.value[espacio.id]) {
         try {
+            // Intentamos cargar usando el nuevo endpoint con evento_id
             const { data } = await tarifaServices.obtenerPorEspacio(espacio.id);
             tarifasPorEspacio.value[espacio.id] = data;
         } catch (e) {
             console.error("No se pudo extraer las tarifas dinámicamente", e)
         }
     }
+
+    // Auto-seleccionar la tarifa que corresponde al evento seleccionado
+    await autoSeleccionarTarifa(espacio.id, eventoId);
 };
 
-// Función para cargar los precios específicos de temporada al elegir un TIPO de tarifa
-const onTipoTarifaChange = async (espacioId, tipoId) => {
-    if (!tipoId) return;
+/**
+ * Auto-selecciona la tarifa que corresponde al evento_id actual.
+ * Busca en el endpoint filtrado por evento: GET /api/tarifas/filtro/{espacioId}/{temporadaId}/{eventoId}
+ */
+const autoSeleccionarTarifa = async (espacioId, eventoId) => {
     const index = cotizacion.value.espacios.findIndex(e => Number(e.espacio_id) === Number(espacioId));
     if (index === -1) return;
 
-    // Helper para extraer precio e ID de un objeto o array
     const parseItem = (item) => ({
         precio: item ? Number(item.precio_dia || 0) : 0,
         id: item ? item.id : null
     });
 
-    // Helper para buscar localmente en la caché global de tarifas
-    const findLocal = (tId) => {
-        const found = tarifas.value.find(t =>
-            Number(t.espacio_id) === Number(espacioId) &&
-            Number(t.temporada_id) === Number(tId) &&
-            Number(t.tipo_tarifa_id) === Number(tipoId)
-        );
-        return parseItem(found);
-    };
-
     // PROCESAR TEMPORADA BAJA
     if (conteoTemporadas.value.baja.count > 0 && conteoTemporadas.value.baja.id) {
         try {
-            const { data } = await tarifaServices.obtenerPorFilro(espacioId, conteoTemporadas.value.baja.id, tipoId);
+            const { data } = await tarifaServices.filtrarPorEvento(espacioId, conteoTemporadas.value.baja.id, eventoId);
             const body = data?.data ? data.data : data;
             const item = Array.isArray(body) ? body[0] : body;
-            let result = parseItem(item);
-
-            // Fallback local si el API no devolvió nada útil
-            if (result.precio === 0) result = findLocal(conteoTemporadas.value.baja.id);
-
+            const result = parseItem(item);
             cotizacion.value.espacios[index].precio_baja = result.precio;
             cotizacion.value.espacios[index].tarifa_id_baja = result.id;
+            cotizacion.value.espacios[index].tipo_tarifa_id = result.id;
         } catch (e) {
-            const result = findLocal(conteoTemporadas.value.baja.id);
-            cotizacion.value.espacios[index].precio_baja = result.precio;
-            cotizacion.value.espacios[index].tarifa_id_baja = result.id;
+            console.warn(`No se encontró tarifa para espacio=${espacioId}, temp=baja, evento=${eventoId}`, e);
+            cotizacion.value.espacios[index].precio_baja = 0;
+            cotizacion.value.espacios[index].tarifa_id_baja = null;
         }
     } else {
         cotizacion.value.espacios[index].precio_baja = 0;
@@ -1406,25 +1515,52 @@ const onTipoTarifaChange = async (espacioId, tipoId) => {
     // PROCESAR TEMPORADA ALTA
     if (conteoTemporadas.value.alta.count > 0 && conteoTemporadas.value.alta.id) {
         try {
-            const { data } = await tarifaServices.obtenerPorFilro(espacioId, conteoTemporadas.value.alta.id, tipoId);
+            const { data } = await tarifaServices.filtrarPorEvento(espacioId, conteoTemporadas.value.alta.id, eventoId);
             const body = data?.data ? data.data : data;
             const item = Array.isArray(body) ? body[0] : body;
-            let result = parseItem(item);
-
-            // Fallback local
-            if (result.precio === 0) result = findLocal(conteoTemporadas.value.alta.id);
-
+            const result = parseItem(item);
             cotizacion.value.espacios[index].precio_alta = result.precio;
             cotizacion.value.espacios[index].tarifa_id_alta = result.id;
+            if (!cotizacion.value.espacios[index].tipo_tarifa_id) {
+                cotizacion.value.espacios[index].tipo_tarifa_id = result.id;
+            }
         } catch (e) {
-            const result = findLocal(conteoTemporadas.value.alta.id);
-            cotizacion.value.espacios[index].precio_alta = result.precio;
-            cotizacion.value.espacios[index].tarifa_id_alta = result.id;
+            console.warn(`No se encontró tarifa para espacio=${espacioId}, temp=alta, evento=${eventoId}`, e);
+            cotizacion.value.espacios[index].precio_alta = 0;
+            cotizacion.value.espacios[index].tarifa_id_alta = null;
         }
     } else {
         cotizacion.value.espacios[index].precio_alta = 0;
         cotizacion.value.espacios[index].tarifa_id_alta = null;
     }
+};
+
+/**
+ * Retorna el nombre descriptivo de la tarifa seleccionada para un espacio.
+ */
+const tarifaSeleccionada = (espacioId) => {
+    const sp = getEspacioData(espacioId);
+    if (!sp?.tipo_tarifa_id) return null;
+    return sp.tipo_tarifa_id;
+};
+
+/**
+ * Cuando cambia el tipo de evento, limpiamos los espacios seleccionados
+ * porque las tarifas disponibles cambian.
+ */
+const onTipoEventoChange = () => {
+    // Limpiar espacios seleccionados porque las tarifas dependen del evento
+    cotizacion.value.espacios = [];
+    // También limpiamos la caché de tarifas por espacio
+    tarifasPorEspacio.value = {};
+};
+
+// Función para cargar los precios específicos de temporada al elegir un TIPO de tarifa (mantenida por compatibilidad)
+const onTipoTarifaChange = async (espacioId, tipoId) => {
+    if (!tipoId) return;
+    const eventoId = cotizacion.value.tipo_evento;
+    if (!eventoId) return;
+    await autoSeleccionarTarifa(espacioId, eventoId);
 };
 
 // ============================================================================
@@ -1521,14 +1657,14 @@ const showModalCliente = ref(false); // Define si el modal está abierto o cerra
 const isCreatingContacto = ref(false); // True: se crea un contacto para una Inst. / False: se crea una Entidad principal.
 
 // Modelo temporal para el formulario del modal.
-const nuevoRegistro = ref({ nit: '', nombre: '', telefono: '', email: '', tipo: 'cliente' });
+const nuevoRegistro = ref({ nit: '', nombre: '', telefono: '', telefono_codigo: defaultCode, telefono_fijo: '', email: '', tipo: 'cliente' });
 
 /**
  * Prepara y abre el modal para crear un Cliente o Institución completamente nueva (Entidad principal)
  */
 const openModalNuevaEntidad = () => {
     isCreatingContacto.value = false;
-    nuevoRegistro.value = { nit: '', nombre: '', telefono: '', email: '', tipo: 'cliente' };
+    nuevoRegistro.value = { nit: '', nombre: '', telefono: '', telefono_codigo: defaultCode, telefono_fijo: '', email: '', tipo: 'cliente' };
     showModalCliente.value = true;
 };
 
@@ -1537,7 +1673,7 @@ const openModalNuevaEntidad = () => {
  */
 const openModalNuevoContacto = () => {
     isCreatingContacto.value = true;
-    nuevoRegistro.value = { nit: '', nombre: '', telefono: '', email: '', tipo: 'cliente' };
+    nuevoRegistro.value = { nit: '', nombre: '', telefono: '', telefono_codigo: defaultCode, telefono_fijo: '', email: '', tipo: 'cliente' };
     showModalCliente.value = true;
 };
 
@@ -1599,6 +1735,62 @@ const isReloading = ref(false);
 
 const imprimirCotizacion = () => {
     generarPreviewPDF();
+};
+
+/**
+ * Construye el payload unificado para guardar o previsualizar la cotización.
+ * @param {string|number} entidadId ID de la entidad
+ * @param {string|number} contactoId ID del contacto
+ * @param {boolean} isPreview Si es vista previa inyectamos datos completos para el PDF
+ */
+const buildCotizacionPayload = (entidadId, contactoId, isPreview = false) => {
+    const payload = {
+        descripcion: cotizacion.value.descripcion || `Cotización para Evento`,
+        fecha_ini:   cotizacion.value.fecha_inicio,
+        fecha_fin:   cotizacion.value.fecha_fin,
+        evento_id:   cotizacion.value.tipo_evento, 
+        clientes:    [],
+        tarifas:     [],
+        servicios:   []
+    };
+
+    if (entidadId) {
+        let obj = { id: entidadId };
+        if (isPreview) {
+            const ent = entidades.value.find(e => e.id === entidadId);
+            if (ent) Object.assign(obj, ent);
+        }
+        payload.clientes.push(obj);
+    }
+    
+    if (contactoId && contactoId !== entidadId) {
+        let obj = { id: contactoId };
+        if (isPreview) {
+            const cont = entidades.value.find(e => e.id === contactoId);
+            if (cont) Object.assign(obj, cont);
+        }
+        payload.clientes.push(obj);
+    }
+
+    cotizacion.value.espacios.forEach(sp => {
+        const diasBaja = sp._dias_baja !== undefined ? sp._dias_baja : conteoTemporadas.value.baja.count;
+        const diasAlta = sp._dias_alta !== undefined ? sp._dias_alta : conteoTemporadas.value.alta.count;
+
+        if (sp.tarifa_id_baja && diasBaja > 0) {
+            payload.tarifas.push({ id: sp.tarifa_id_baja, dias: diasBaja, precio_aplicado: sp.precio_baja });
+        }
+        if (sp.tarifa_id_alta && diasAlta > 0) {
+            payload.tarifas.push({ id: sp.tarifa_id_alta, dias: diasAlta, precio_aplicado: sp.precio_alta });
+        }
+    });
+
+    cotizacion.value.servicios.forEach(sv => {
+        payload.servicios.push({
+            id: sv.servicio_id, cantidad: sv.cantidad, dias: sv.dias || conteoTemporadas.value.total || 1, precio_aplicado: sv.precio
+        });
+    });
+
+    return payload;
 };
 
 const guardarCotizacionCompleta = async () => {
@@ -1686,65 +1878,29 @@ const guardarCotizacionCompleta = async () => {
         // ─────────────────────────────────────────────────────────────────
 
         // Ahora construimos el payload de la cotización con los IDs reales ya resueltos
-        const payload = {
-            descripcion: cotizacion.value.descripcion || `Cotización para ${entidadObj?.nombre || 'Evento'}`,
-            fecha_ini:   cotizacion.value.fecha_inicio,
-            fecha_fin:   cotizacion.value.fecha_fin,
-            evento_id:   cotizacion.value.tipo_evento,
-            clientes:    [],
-            tarifas:     [],
-            servicios:   []
-        };
+        const payload = buildCotizacionPayload(entidad_id_real, contacto_id_real);
 
-        // Agregamos la entidad y el contacto (evitamos duplicar si son la misma persona)
-        if (entidad_id_real) {
-            payload.clientes.push({ id: entidad_id_real });
+        // Si tenemos un nombre de entidad, podemos inyectarlo a la descripcion si quedo vacía
+        if (!cotizacion.value.descripcion && entidadObj?.nombre) {
+            payload.descripcion = `Cotización para ${entidadObj.nombre}`;
         }
-        if (contacto_id_real && contacto_id_real !== entidad_id_real) {
-            payload.clientes.push({ id: contacto_id_real });
-        }
-
-        // Mapeamos los ESPACIOS a tarifas desglosadas por temporada alta/baja
-        cotizacion.value.espacios.forEach(sp => {
-            if (sp.tarifa_id_baja && conteoTemporadas.value.baja.count > 0) {
-                payload.tarifas.push({
-                    id:              sp.tarifa_id_baja,
-                    dias:            conteoTemporadas.value.baja.count,
-                    precio_aplicado: sp.precio_baja
-                });
-            }
-            if (sp.tarifa_id_alta && conteoTemporadas.value.alta.count > 0) {
-                payload.tarifas.push({
-                    id:              sp.tarifa_id_alta,
-                    dias:            conteoTemporadas.value.alta.count,
-                    precio_aplicado: sp.precio_alta
-                });
-            }
-        });
-
-        // Mapeamos los SERVICIOS adicionales seleccionados
-        cotizacion.value.servicios.forEach(sv => {
-            payload.servicios.push({
-                id:              sv.servicio_id,
-                cantidad:        sv.cantidad,
-                dias:            sv.dias,
-                precio_aplicado: sv.precio
-            });
-        });
 
         // Guardamos la cotización completa en la base de datos
-        await cotizacionServices.guardar(payload);
+        const response = await cotizacionServices.guardar(payload);
 
         // Termina el request
         isSubmitting.value = false;
 
-        // Mostramos un toast de éxito con todo lo que se creó en este flujo
+        // Capturamos el código devuelto por el backend
+        const codigoGenerado = response.data?.codigo || response.data?.data?.codigo || 'Registrada exitosamente';
+
+        // Mostramos un toast de éxito con el código
         const extraMsg = extras.length > 0 ? '\n' + extras.join('\n') : '';
         toast.add({
             severity: 'success',
-            summary:  'Cotización Registrada',
+            summary:  `Cotización ${codigoGenerado}`,
             detail:   `La cotización se guardó exitosamente.${extraMsg}`,
-            life:     6000
+            life:     8000
         });
 
         // Activamos la animación de recarga
@@ -1770,34 +1926,8 @@ const guardarCotizacionCompleta = async () => {
 
 const generarPreviewPDF = async () => {
     try {
-        const payload = {
-            entidad_nombre: entidades.value.find(e => e.id === cotizacion.value.entidad_id)?.nombre || 'S/N',
-            nit: entidades.value.find(e => e.id === cotizacion.value.entidad_id)?.nit || '-',
-            contacto_nombre: entidades.value.find(e => e.id === cotizacion.value.contacto_id)?.nombre || '-',
-            telefono: entidades.value.find(e => e.id === cotizacion.value.contacto_id)?.telefono || '',
-            tipo_evento_nombre: tiposEvento.value.find(e => e.id === cotizacion.value.tipo_evento)?.descripcion || '-',
-            fecha_rango: `${new Date(cotizacion.value.fecha_inicio).toLocaleDateString()} al ${new Date(cotizacion.value.fecha_fin).toLocaleDateString()}`,
-            total_dias: conteoTemporadas.value.total,
-            temporada_label: (conteoTemporadas.value.alta.count > 0 && conteoTemporadas.value.baja.count > 0) ? 'Temporada mixta' : (conteoTemporadas.value.alta.count > 0 ? 'Temporada alta' : 'Temporada baja'),
-            espacios: cotizacion.value.espacios.map(sp => ({
-                nombre: espacios.value.find(e => e.id === sp.espacio_id)?.nombre || 'Espacio',
-                bloque: getFullBloqueLabel(sp.espacio_id).replace('Bloque ', ''),
-                tarifa_nombre: sp.tipo_tarifa_id ? (getTipoTarifaName(sp.tipo_tarifa_id) || 'Sin tipo') : 'Sin tipo',
-                precio_dia: (sp.precio_baja * conteoTemporadas.value.baja.count + sp.precio_alta * conteoTemporadas.value.alta.count) / (conteoTemporadas.value.total || 1),
-                dias: conteoTemporadas.value.total,
-                subtotal: (conteoTemporadas.value.baja.count * sp.precio_baja) + (conteoTemporadas.value.alta.count * sp.precio_alta)
-            })),
-            servicios: cotizacion.value.servicios.map(sv => ({
-                nombre: sv.nombre,
-                precio: sv.precio,
-                cantidad: sv.cantidad,
-                dias: sv.porEv ? 1 : sv.dias,
-                subtotal: calculateServicioSubtotal(sv)
-            })),
-            subtotal_espacios: paso2Subtotal.value,
-            subtotal_servicios: paso3Subtotal.value,
-            total: paso3Subtotal.value + paso2Subtotal.value
-        };
+        // El backend generará el PDF y pintará "NO REGISTRADA - VISTA PREVIA"
+        const payload = buildCotizacionPayload(cotizacion.value.entidad_id, cotizacion.value.contacto_id, true);
 
         const response = await cotizacionServices.preview(payload);
 

@@ -19,8 +19,17 @@ export default {
     obtenerPorEspacio: (espacio_id) => {
         return Api().get(`tarifas/espacio/${espacio_id}`);
     },
+    /**
+     * OBSOLETO: Se mantiene por compatibilidad pero prefiere usar filtrarPorEvento.
+     */
     obtenerPorFilro: (espacio_id, temporada_id, tipo_tarifa_id) => {
         return Api().get(`tarifas/espacio/${espacio_id}/temporada/${temporada_id}/tipo/${tipo_tarifa_id}`);
+    },
+    /**
+     * Filtro de tarifas por espacio, temporada y evento.
+     * GET /api/tarifas/espacio/{espacioId}/temporada/{temporadaId}/evento/{eventoId}
+     */
+    filtrarPorEvento: (espacio_id, temporada_id, evento_id) => {
+        return Api().get(`tarifas/espacio/${espacio_id}/temporada/${temporada_id}/evento/${evento_id}`);
     }
-
 }
