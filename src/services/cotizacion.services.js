@@ -18,5 +18,16 @@ export default {
     },
     preview: (datos) => {
         return Api().post('cotizaciones/preview', datos, { responseType: 'blob' });
+    },
+    imprimir: (id) => {
+        return Api().get(`cotizaciones/${id}/imprimir`, { responseType: 'blob' });
+    },
+    subirRespaldo: (id, formData) => {
+        return Api().post(`cotizaciones/${id}/subir-respaldo`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    },
+    getRespaldos: (id) => {
+        return Api().get(`cotizaciones/${id}/respaldos`);
     }
 };

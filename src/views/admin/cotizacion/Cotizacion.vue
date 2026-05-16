@@ -1,18 +1,20 @@
 <template>
     <div class="card p-0 overflow-hidden shadow-lg border-none rounded-xl">
         <!-- Header Section -->
-        <div class="p-6 bg-white dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div
+            class="p-6 bg-white dark:bg-surface-900 border-b border-surface-200 dark:border-surface-700 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-0 m-0">Cotizaciones</h1>
                 <p class="text-surface-500 mt-1">Gestión y seguimiento de solicitudes de arrendamiento.</p>
             </div>
-            
+
             <div class="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
                 <span class="p-input-icon-left w-full md:w-auto">
                     <i class="pi pi-search" />
-                    <InputText v-model="filters['global'].value" placeholder="Buscar..." class="w-full md:w-64 rounded-full bg-surface-50" />
+                    <InputText v-model="filters['global'].value" placeholder="Buscar..."
+                        class="w-full md:w-64 rounded-full bg-surface-50" />
                 </span>
-                
+
                 <router-link :to="{ name: 'cotizacionNueva' }">
                     <Button label="Nueva Cotización" icon="pi pi-plus" class="rounded-full !px-5" />
                 </router-link>
@@ -20,18 +22,15 @@
         </div>
 
         <!-- DataTable -->
-        <DataTable :value="cotizaciones" :paginator="true" :rows="10" dataKey="id" 
-            :filters="filters" filterDisplay="menu" :loading="loading"
-            class="p-datatable-lg custom-header" 
-            :rowHover="true"
-            responsiveLayout="scroll"
-            emptyMessage="No se encontraron cotizaciones.">
-            
+        <DataTable :value="cotizaciones" :paginator="true" :rows="10" dataKey="id" :filters="filters"
+            filterDisplay="menu" :loading="loading" class="p-datatable-lg custom-header" :rowHover="true"
+            responsiveLayout="scroll" emptyMessage="No se encontraron cotizaciones.">
+
             <!-- N° / Fecha -->
             <Column field="id" header="N° / FECHA" style="min-width: 12rem">
                 <template #body="{ data }">
                     <div class="flex flex-col">
-                        <span class="font-bold text-surface-900 dark:text-surface-0">COT-{{ new Date(data.created_at).getFullYear() }}-{{ String(data.id).padStart(3, '0') }}</span>
+                        <span class="font-bold text-surface-900 dark:text-surface-0">{{ data.codigo }}</span>
                         <span class="text-xs text-surface-500">{{ formatDateShort(data.created_at) }}</span>
                     </div>
                 </template>
@@ -41,7 +40,8 @@
             <Column header="CLIENTE" style="min-width: 14rem">
                 <template #body="{ data }">
                     <div class="flex flex-col">
-                        <span class="font-bold text-surface-900 dark:text-surface-0">{{ getInstitucionNombre(data) }}</span>
+                        <span class="font-bold text-surface-900 dark:text-surface-0">{{ getInstitucionNombre(data)
+                        }}</span>
                         <span class="text-xs text-surface-500">{{ getContactoNombre(data) }}</span>
                     </div>
                 </template>
@@ -50,7 +50,8 @@
             <!-- Tipo -->
             <Column field="evento.descripcion" header="TIPO" style="min-width: 10rem">
                 <template #body="{ data }">
-                    <Tag :severity="getEventoSeverity(data.evento?.descripcion)" class="rounded-xl px-3 font-semibold !text-xs whitespace-nowrap">
+                    <Tag :severity="getEventoSeverity(data.evento?.descripcion)"
+                        class="rounded-xl px-3 font-semibold !text-xs whitespace-nowrap">
                         <div class="flex items-center gap-2">
                             <i :class="getEventoIcon(data.evento?.descripcion)"></i>
                             <span>{{ data.evento?.descripcion || 'Evento' }}</span>
@@ -62,7 +63,8 @@
             <!-- Espacios -->
             <Column header="ESPACIOS" style="min-width: 14rem">
                 <template #body="{ data }">
-                    <div class="text-sm text-surface-700 dark:text-surface-300 truncate max-w-[14rem]" :title="getEspaciosList(data)">
+                    <div class="text-sm text-surface-700 dark:text-surface-300 truncate max-w-[14rem]"
+                        :title="getEspaciosList(data)">
                         {{ getEspaciosList(data) || '-' }}
                     </div>
                 </template>
@@ -72,8 +74,10 @@
             <Column header="FECHA EVENTO" style="min-width: 14rem">
                 <template #body="{ data }">
                     <div class="flex flex-col">
-                        <span class="text-sm font-medium">{{ formatDateShort(data.fecha_ini) }} - {{ formatDateShort(data.fecha_fin) }}</span>
-                        <span class="text-xs text-surface-500">{{ calcularDias(data.fecha_ini, data.fecha_fin) }} día(s)</span>
+                        <span class="text-sm font-medium">{{ formatDateShort(data.fecha_ini) }} - {{
+                            formatDateShort(data.fecha_fin) }}</span>
+                        <span class="text-xs text-surface-500">{{ calcularDias(data.fecha_ini, data.fecha_fin) }}
+                            día(s)</span>
                     </div>
                 </template>
             </Column>
@@ -81,21 +85,24 @@
             <!-- Ejecutivo -->
             <Column header="EJECUTIVO" style="min-width: 12rem">
                 <template #body="{ data }">
-                    <span class="text-sm text-surface-700 dark:text-surface-300">{{ data.user?.name || 'Sistema' }}</span>
+                    <span class="text-sm text-surface-700 dark:text-surface-300">{{ data.user?.name || 'Sistema'
+                    }}</span>
                 </template>
             </Column>
 
             <!-- Monto -->
             <Column header="MONTO" style="min-width: 10rem" alignFrozen="right">
                 <template #body="{ data }">
-                    <span class="font-bold text-surface-900 dark:text-surface-0">Bs {{ formatCurrency(calcularMontoTotal(data)) }}</span>
+                    <span class="font-bold text-surface-900 dark:text-surface-0">Bs {{
+                        formatCurrency(data.monto_total) }}</span>
                 </template>
             </Column>
 
             <!-- Estado -->
             <Column header="ESTADO" style="min-width: 10rem" alignFrozen="right">
                 <template #body="{ data }">
-                    <Tag :severity="getEstadoSeverity(data.paso)" :value="getEstadoLabel(data.paso)" class="rounded-full px-3" />
+                    <Tag :severity="getEstadoSeverity(data.paso)" :value="getEstadoLabel(data.paso)"
+                        class="rounded-full px-3" />
                 </template>
             </Column>
 
@@ -103,11 +110,12 @@
             <Column style="width: 5rem; text-align: center" alignFrozen="right" :frozen="true">
                 <template #body="{ data }">
                     <router-link :to="{ name: 'cotizacionDetalle', params: { id: data.id } }">
-                        <Button label="Ver" icon="pi pi-arrow-right" iconPos="right" size="small" class="bg-surface-900 border-surface-900 hover:bg-surface-700 text-white !text-xs rounded-full shadow-md" />
+                        <Button label="Ver" icon="pi pi-arrow-right" iconPos="right" size="small"
+                            class="bg-surface-900 border-surface-900 hover:bg-surface-700 text-white !text-xs rounded-full shadow-md" />
                     </router-link>
                 </template>
             </Column>
-            
+
         </DataTable>
     </div>
 </template>
@@ -172,7 +180,7 @@ const getContactoNombre = (data) => {
     // Si la persona de contacto es la misma, se repite o se omite
     const inst = data.clientes.find(c => c.tipo_cliente_id === 1);
     const perso = data.clientes.find(c => c.tipo_cliente_id === 2);
-    
+
     if (inst && perso) return perso.nombre;
     if (inst && !perso) return '-';
     // Solo persona natural
@@ -192,23 +200,8 @@ const getEspaciosList = (data) => {
     return spaces.join(', ');
 };
 
-const calcularMontoTotal = (data) => {
-    let total = 0;
-    if (data.tarifas) {
-        data.tarifas.forEach(t => {
-            total += (Number(t.pivot?.precio_aplicado || 0) * Number(t.pivot?.dias || 0));
-        });
-    }
-    if (data.servicios) {
-        data.servicios.forEach(s => {
-            total += (Number(s.pivot?.precio_aplicado || 0) * Number(s.pivot?.cantidad || 0) * Number(s.pivot?.dias || 0));
-        });
-    }
-    return total;
-};
-
 const formatCurrency = (value) => {
-    return Number(value).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return Number(value || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 // --- Tags / UI Visual Helpers ---
@@ -269,6 +262,7 @@ const getEstadoSeverity = (paso) => {
     padding-top: 1rem;
     padding-bottom: 1rem;
 }
+
 .dark :deep(.custom-header .p-datatable-thead > tr > th) {
     background-color: #0f172a;
     color: #94a3b8;
@@ -278,8 +272,11 @@ const getEstadoSeverity = (paso) => {
 .hide-scrollbar::-webkit-scrollbar {
     display: none;
 }
+
 .hide-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
 }
 </style>
